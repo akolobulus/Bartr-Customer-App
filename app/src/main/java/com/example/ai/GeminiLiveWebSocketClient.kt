@@ -112,7 +112,7 @@ class GeminiLiveWebSocketClient(
             val speechConfig = JSONObject()
             val voiceConfig = JSONObject()
             val prebuiltVoiceConfig = JSONObject()
-            prebuiltVoiceConfig.put("voiceName", "Kore")
+            prebuiltVoiceConfig.put("voiceName", "Aoede")
             voiceConfig.put("prebuiltVoiceConfig", prebuiltVoiceConfig)
             speechConfig.put("voiceConfig", voiceConfig)
             generationConfig.put("speechConfig", speechConfig)
@@ -122,7 +122,7 @@ class GeminiLiveWebSocketClient(
             // System Instruction
             val sysInstruction = JSONObject()
             val parts = JSONArray()
-            parts.put(JSONObject().put("text", "You are the Bartr Live Voice AI Assistant on Android powered by Gemini 3.8 Live. Help users with local artisans, repairs, mechanics, beauty services in Ikeja and Lagos, Nigeria. Speak concisely and warm."))
+            parts.put(JSONObject().put("text", "You are Amaka, a warm, soft-spoken Nigerian female AI assistant for Bartr in Lagos, Nigeria. Speak with a gentle, calm, sweet Nigerian female voice and cadence. Help users find trusted artisans, book jobs, check price quotes, make calls, and navigate the app in Lagos. Keep spoken replies brief, sweet, polite, and natural (1-2 sentences)."))
             sysInstruction.put("parts", parts)
             bidiSetup.put("systemInstruction", sysInstruction)
 

@@ -24,6 +24,7 @@ data class Vendor(
     val review2: String,
     val lat: Double,
     val lng: Double,
+    val phone: String = "+2348023456789",
 )
 
 data class ChatMessage(

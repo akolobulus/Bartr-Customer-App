@@ -15,12 +15,12 @@ import java.util.concurrent.TimeUnit
 
 object GeminiLiveService {
     private const val TAG = "GeminiLiveService"
-    private const val PRIMARY_MODEL = "gemini-3.8-flash"
+    private const val PRIMARY_MODEL = "gemini-3.6-flash"
     private val CANDIDATE_MODELS = listOf(
-        "gemini-3.8-flash",
-        "gemini-3.5-flash",
         "gemini-3.6-flash",
-        "gemini-flash-latest"
+        "gemini-3.5-flash",
+        "gemini-flash-latest",
+        "gemini-3.8-flash"
     )
 
     private val client = OkHttpClient.Builder()
@@ -169,20 +169,28 @@ object GeminiLiveService {
             JSONObject().put(
                 "text",
                 """
-                You are the Bartr Live Voice AI Assistant on Android powered by $targetModel.
-                Bartr connects people in Lagos, Nigeria (Ikeja, Yaba, Surulere, Victoria Island, etc.) with trusted local service providers.
-                You have autonomous agency to perform actions on the user's behalf using tools.
-                You are grounded with Google Maps data for accurate locations, addresses, and local venues in Lagos.
-                Tools available:
-                - search_vendors: when user needs any service (phone repair, auto mechanic, nail tech, plumber, AC repair, generator repair, carpenter, etc.)
-                - book_vendor: when user wants to book, hire, or request a specific vendor
-                - navigate_to: when user wants to go to a screen (home, payments, promotions, my_requests, saved_vendors, help, about, profile, edit_profile, invite_friend, matches)
-                - recenter_map: when user wants to center map on current location in Ikeja
-                - apply_promo_code: when user asks to enter or apply a promo code (e.g. BARTR500)
-                - open_chat_with_vendor: when user wants to chat with a vendor (Chuka, Adaeze, Musa)
+                You are Amaka, a warm, soft-spoken Nigerian female AI assistant for Bartr in Lagos, Nigeria.
+                You speak with a gentle, polite, soothing, and natural Nigerian female tone and cadence.
+                Bartr connects people in Lagos, Nigeria (Ikeja, Yaba, Surulere, Lekki, Victoria Island, etc.) with trusted local service providers and artisans.
+                You have full autonomous agency to do anything for the user on this device.
+                When the user gives a request or command, ALWAYS call the appropriate tool to execute it directly.
+                Available tools:
+                - search_vendors: search local artisans by trade, problem, or keywords (e.g. phone repair, mechanic, beauty, plumber, electrician, generator, AC repair, carpentry)
+                - filter_vendors: filter by 'cheapest', 'top_rated', 'nearest', or specific category
+                - select_vendor: view or highlight a vendor on the map and open their card
+                - book_vendor: hire or book a vendor for a service
+                - open_vendor_chat: open direct chat with a vendor (Chuka, Adaeze, Musa, Ifeoma, Bode)
+                - call_vendor: initiate a direct phone call to an artisan
+                - navigate_to: switch to any screen (home, payments, promotions, my_requests, saved_vendors, help, about, profile, invite_friend, matches)
+                - recenter_map: recenter the map on 14 Market Road, Ikeja
+                - zoom_map: zoom the map in or out
+                - apply_promo_code: apply promo discount code (e.g. BARTR500)
+                - toggle_save_vendor: bookmark or favorite a vendor
+                - get_service_quote: provide price benchmark & breakdown for a task
+                - share_app: share referral link with friends
+                - clear_filters: reset search filters and display all available artisans
                 
-                Always speak concisely, warmly, and helpfully. Keep spoken sentences short (1-2 sentences).
-                For bookings/requests, make clear that user confirmation will be requested.
+                Keep spoken replies brief, sweet, polite, and natural (1-2 sentences), embodying a soft, calm Nigerian girl voice.
                 """.trimIndent()
             )
         )
@@ -225,7 +233,7 @@ object GeminiLiveService {
                 name = "search_vendors",
                 description = "Search and find local service providers in Lagos by trade or keywords.",
                 properties = mapOf(
-                    "query" to ("STRING" to "Service or trade to search for, e.g. 'iPhone repair' or 'mechanic'"),
+                    "query" to ("STRING" to "Service or trade to search for, e.g. 'iPhone repair', 'mechanic', 'plumber'"),
                     "category" to ("STRING" to "Category of service")
                 ),
                 required = listOf("query")
@@ -234,10 +242,33 @@ object GeminiLiveService {
 
         declarations.put(
             createFunctionDeclaration(
-                name = "book_vendor",
-                description = "Request or book a verified vendor for a task. Requires user permission.",
+                name = "filter_vendors",
+                description = "Filter the vendor list by criteria: 'cheapest', 'top_rated', 'nearest', 'repairs', 'beauty', 'mechanic'.",
                 properties = mapOf(
-                    "vendor_id" to ("STRING" to "Vendor ID or name (e.g. 'chuka', 'adaeze', 'musa')"),
+                    "filter_type" to ("STRING" to "Type of filter: 'cheapest', 'top_rated', 'nearest', 'category'"),
+                    "value" to ("STRING" to "Filter value or category name")
+                ),
+                required = listOf("filter_type", "value")
+            )
+        )
+
+        declarations.put(
+            createFunctionDeclaration(
+                name = "select_vendor",
+                description = "Select and highlight a vendor on the map and bottom sheet.",
+                properties = mapOf(
+                    "vendor_id" to ("STRING" to "Vendor ID (chuka, adaeze, musa, ifeoma, bode)")
+                ),
+                required = listOf("vendor_id")
+            )
+        )
+
+        declarations.put(
+            createFunctionDeclaration(
+                name = "book_vendor",
+                description = "Request or book a verified vendor for a task.",
+                properties = mapOf(
+                    "vendor_id" to ("STRING" to "Vendor ID or name (e.g. 'chuka', 'adaeze', 'musa', 'ifeoma', 'bode')"),
                     "service" to ("STRING" to "The service requested (e.g. 'Screen Replacement')"),
                     "price" to ("STRING" to "Estimated price, e.g. '₦5,000'")
                 ),
@@ -247,10 +278,33 @@ object GeminiLiveService {
 
         declarations.put(
             createFunctionDeclaration(
+                name = "call_vendor",
+                description = "Call a vendor directly on the phone.",
+                properties = mapOf(
+                    "vendor_id" to ("STRING" to "Vendor ID (chuka, adaeze, musa, ifeoma, bode)")
+                ),
+                required = listOf("vendor_id")
+            )
+        )
+
+        declarations.put(
+            createFunctionDeclaration(
+                name = "open_chat_with_vendor",
+                description = "Open the direct chat window with a vendor.",
+                properties = mapOf(
+                    "vendor_id" to ("STRING" to "Vendor ID or name (chuka, adaeze, musa, ifeoma, bode)"),
+                    "initial_message" to ("STRING" to "Optional initial message to prepare in chat")
+                ),
+                required = listOf("vendor_id")
+            )
+        )
+
+        declarations.put(
+            createFunctionDeclaration(
                 name = "navigate_to",
                 description = "Navigate to any screen on the app.",
                 properties = mapOf(
-                    "screen" to ("STRING" to "Target screen: 'home', 'payments', 'promotions', 'my_requests', 'saved_vendors', 'help', 'about', 'profile', 'edit_profile', 'invite_friend', 'matches'")
+                    "screen" to ("STRING" to "Target screen: 'home', 'payments', 'promotions', 'my_requests', 'saved_vendors', 'help', 'about', 'profile', 'invite_friend', 'matches'")
                 ),
                 required = listOf("screen")
             )
@@ -267,6 +321,17 @@ object GeminiLiveService {
 
         declarations.put(
             createFunctionDeclaration(
+                name = "zoom_map",
+                description = "Zoom the map in or out.",
+                properties = mapOf(
+                    "direction" to ("STRING" to "'in' or 'out'")
+                ),
+                required = listOf("direction")
+            )
+        )
+
+        declarations.put(
+            createFunctionDeclaration(
                 name = "apply_promo_code",
                 description = "Apply a promotional discount code (e.g. BARTR500).",
                 properties = mapOf(
@@ -278,12 +343,43 @@ object GeminiLiveService {
 
         declarations.put(
             createFunctionDeclaration(
-                name = "open_chat_with_vendor",
-                description = "Open the direct chat window with a vendor.",
+                name = "toggle_save_vendor",
+                description = "Save/bookmark or remove a vendor from favorites.",
                 properties = mapOf(
-                    "vendor_id" to ("STRING" to "Vendor ID or name (chuka, adaeze, musa)")
+                    "vendor_id" to ("STRING" to "Vendor ID"),
+                    "save" to ("STRING" to "'true' to save, 'false' to remove")
                 ),
                 required = listOf("vendor_id")
+            )
+        )
+
+        declarations.put(
+            createFunctionDeclaration(
+                name = "get_service_quote",
+                description = "Get fair price guidance and price quote for any artisan service in Lagos.",
+                properties = mapOf(
+                    "trade" to ("STRING" to "Trade e.g. 'plumber', 'electrician', 'mechanic', 'phone repair'"),
+                    "task_description" to ("STRING" to "What needs fixing")
+                ),
+                required = listOf("trade")
+            )
+        )
+
+        declarations.put(
+            createFunctionDeclaration(
+                name = "share_app",
+                description = "Share referral code with friends.",
+                properties = emptyMap(),
+                required = emptyList()
+            )
+        )
+
+        declarations.put(
+            createFunctionDeclaration(
+                name = "clear_filters",
+                description = "Reset search and filter state to show all artisans.",
+                properties = emptyMap(),
+                required = emptyList()
             )
         )
 
@@ -330,12 +426,33 @@ object GeminiLiveService {
                 val cat = fc.args["category"]?.toString()
                 AutonomousAction.SearchVendors(q, cat)
             }
+            "filter_vendors" -> {
+                val filterType = fc.args["filter_type"]?.toString() ?: "category"
+                val value = fc.args["value"]?.toString() ?: "repairs"
+                AutonomousAction.FilterVendors(filterType, value)
+            }
+            "select_vendor" -> {
+                val vId = fc.args["vendor_id"]?.toString()?.lowercase() ?: "chuka"
+                val vendor = BartrRepository.getVendor(vId)
+                AutonomousAction.SelectVendor(vendor.id, vendor.name)
+            }
             "book_vendor" -> {
                 val vId = fc.args["vendor_id"]?.toString()?.lowercase() ?: "chuka"
                 val vendor = BartrRepository.getVendor(vId)
                 val service = fc.args["service"]?.toString() ?: vendor.category
                 val price = fc.args["price"]?.toString() ?: vendor.finalPrice
                 AutonomousAction.BookVendor(vendor.id, vendor.name, service, price)
+            }
+            "call_vendor" -> {
+                val vId = fc.args["vendor_id"]?.toString()?.lowercase() ?: "chuka"
+                val vendor = BartrRepository.getVendor(vId)
+                AutonomousAction.CallVendor(vendor.id, vendor.name, vendor.phone)
+            }
+            "open_chat_with_vendor" -> {
+                val vId = fc.args["vendor_id"]?.toString()?.lowercase() ?: "chuka"
+                val vendor = BartrRepository.getVendor(vId)
+                val initialMsg = fc.args["initial_message"]?.toString()
+                AutonomousAction.OpenVendorChat(vendor.id, vendor.name, initialMsg)
             }
             "navigate_to" -> {
                 val screen = fc.args["screen"]?.toString()?.lowercase() ?: "home"
@@ -355,15 +472,35 @@ object GeminiLiveService {
                 AutonomousAction.NavigateTo(screen, label)
             }
             "recenter_map" -> AutonomousAction.RecenterMap()
+            "zoom_map" -> {
+                val dir = fc.args["direction"]?.toString()?.lowercase() ?: "in"
+                AutonomousAction.ZoomMap(dir)
+            }
             "apply_promo_code" -> {
                 val code = fc.args["code"]?.toString() ?: "BARTR500"
                 AutonomousAction.ApplyPromo(code)
             }
-            "open_chat_with_vendor" -> {
+            "toggle_save_vendor" -> {
                 val vId = fc.args["vendor_id"]?.toString()?.lowercase() ?: "chuka"
                 val vendor = BartrRepository.getVendor(vId)
-                AutonomousAction.OpenVendorChat(vendor.id, vendor.name)
+                val save = fc.args["save"]?.toString()?.toBoolean() ?: true
+                AutonomousAction.ToggleSaveVendor(vendor.id, vendor.name, save)
             }
+            "get_service_quote" -> {
+                val trade = fc.args["trade"]?.toString() ?: "phone repair"
+                val task = fc.args["task_description"]?.toString() ?: "diagnostic"
+                val estimate = when {
+                    trade.contains("phone", true) -> "₦4,500 – ₦6,000"
+                    trade.contains("nail", true) || trade.contains("beauty", true) -> "₦3,000 – ₦7,500"
+                    trade.contains("mechanic", true) || trade.contains("car", true) -> "₦8,000 – ₦25,000"
+                    trade.contains("plumb", true) -> "₦5,000 – ₦15,000"
+                    trade.contains("electric", true) -> "₦4,000 – ₦12,000"
+                    else -> "₦5,000 – ₦10,000"
+                }
+                AutonomousAction.CalculateQuote(trade, task, estimate)
+            }
+            "share_app" -> AutonomousAction.ShareApp()
+            "clear_filters" -> AutonomousAction.ClearFilters()
             else -> null
         }
     }
@@ -376,102 +513,240 @@ object GeminiLiveService {
         val lower = userMessage.lowercase().trim()
 
         return when {
-            lower.contains("chuka") && (lower.contains("book") || lower.contains("request") || lower.contains("hire") || lower.contains("fix")) -> {
-                val vendor = BartrRepository.getVendor("chuka")
-                AiResponseResult(
-                    text = "I can request Chuka's Repairs for phone repair at ₦5,000 with cash on completion. Should I proceed?",
-                    action = AutonomousAction.BookVendor(vendor.id, vendor.name, "Phone Screen Repair", "₦5,000")
-                )
-            }
-            lower.contains("adaeze") && (lower.contains("book") || lower.contains("request") || lower.contains("hire") || lower.contains("nail")) -> {
-                val vendor = BartrRepository.getVendor("adaeze")
-                AiResponseResult(
-                    text = "I can book Adaeze Nails & Beauty for ₦5,000. Would you like me to request her now?",
-                    action = AutonomousAction.BookVendor(vendor.id, vendor.name, "Nail Art & Care", "₦5,000")
-                )
-            }
-            lower.contains("musa") && (lower.contains("book") || lower.contains("request") || lower.contains("mechanic")) -> {
-                val vendor = BartrRepository.getVendor("musa")
-                AiResponseResult(
-                    text = "I can request Musa Auto Care for vehicle diagnostics and repair at ₦12,000. Shall I proceed?",
-                    action = AutonomousAction.BookVendor(vendor.id, vendor.name, "Vehicle Diagnostics", "₦12,000")
-                )
-            }
-            lower.contains("recenter") || lower.contains("center map") || lower.contains("my location") || lower.contains("where am i") -> {
-                AiResponseResult(
-                    text = "Centering the map on your location at 14 Market Road, Ikeja.",
-                    action = AutonomousAction.RecenterMap()
-                )
-            }
-            lower.contains("promo") || lower.contains("discount") || lower.contains("code") || lower.contains("bartr500") -> {
-                AiResponseResult(
-                    text = "Applying promo code BARTR500 for ₦500 off your next request!",
-                    action = AutonomousAction.ApplyPromo("BARTR500")
-                )
-            }
-            lower.contains("payment") || lower.contains("card") || lower.contains("cash") -> {
-                AiResponseResult(
-                    text = "Opening your payments settings. You can manage cash and card options here.",
-                    action = AutonomousAction.NavigateTo("payments", "Payments")
-                )
-            }
-            lower.contains("request") && (lower.contains("my") || lower.contains("previous") || lower.contains("history") || lower.contains("past")) -> {
-                AiResponseResult(
-                    text = "Taking you to your past requests and active bookings.",
-                    action = AutonomousAction.NavigateTo("my_requests", "My Requests")
-                )
-            }
-            lower.contains("saved") || lower.contains("bookmark") || lower.contains("favorite") -> {
-                AiResponseResult(
-                    text = "Opening your saved vendors list.",
-                    action = AutonomousAction.NavigateTo("saved_vendors", "Saved Vendors")
-                )
-            }
-            lower.contains("help") || lower.contains("support") || lower.contains("contact") -> {
-                AiResponseResult(
-                    text = "Opening Bartr support and FAQ center.",
-                    action = AutonomousAction.NavigateTo("help", "Help & Support")
-                )
-            }
-            lower.contains("profile") || lower.contains("account") -> {
-                AiResponseResult(
-                    text = "Opening your user profile.",
-                    action = AutonomousAction.NavigateTo("profile", "Profile")
-                )
-            }
-            lower.contains("invite") || lower.contains("friend") || lower.contains("refer") -> {
-                AiResponseResult(
-                    text = "Opening the invite screen so you can share Bartr with friends.",
-                    action = AutonomousAction.NavigateTo("invite_friend", "Invite a Friend")
-                )
-            }
-            lower.contains("chat") -> {
+            // Phone call actions
+            lower.contains("call") || lower.contains("phone") && lower.contains("dial") || lower.contains("ring") -> {
                 val targetVendor = when {
                     lower.contains("adaeze") -> "adaeze"
                     lower.contains("musa") -> "musa"
+                    lower.contains("ifeoma") -> "ifeoma"
+                    lower.contains("bode") -> "bode"
                     else -> "chuka"
                 }
                 val vendor = BartrRepository.getVendor(targetVendor)
                 AiResponseResult(
-                    text = "Opening direct chat with ${vendor.name}.",
+                    text = "Calling ${vendor.name} at ${vendor.phone} for you right away.",
+                    action = AutonomousAction.CallVendor(vendor.id, vendor.name, vendor.phone)
+                )
+            }
+            // Book / Request actions
+            (lower.contains("book") || lower.contains("request") || lower.contains("hire") || lower.contains("order")) && lower.contains("chuka") -> {
+                val vendor = BartrRepository.getVendor("chuka")
+                AiResponseResult(
+                    text = "I've requested Chuka's Repairs for phone screen repair at ₦5,000 with pay on completion.",
+                    action = AutonomousAction.BookVendor(vendor.id, vendor.name, "Phone Screen Repair", "₦5,000")
+                )
+            }
+            (lower.contains("book") || lower.contains("request") || lower.contains("hire") || lower.contains("order")) && lower.contains("adaeze") -> {
+                val vendor = BartrRepository.getVendor("adaeze")
+                AiResponseResult(
+                    text = "Booking Adaeze Nails & Beauty for gel manicure at ₦5,000 for you.",
+                    action = AutonomousAction.BookVendor(vendor.id, vendor.name, "Nail Art & Care", "₦5,000")
+                )
+            }
+            (lower.contains("book") || lower.contains("request") || lower.contains("hire") || lower.contains("order")) && lower.contains("musa") -> {
+                val vendor = BartrRepository.getVendor("musa")
+                AiResponseResult(
+                    text = "Requesting Musa Auto Care for vehicle diagnostic & maintenance at ₦12,000.",
+                    action = AutonomousAction.BookVendor(vendor.id, vendor.name, "Vehicle Diagnostics", "₦12,000")
+                )
+            }
+            // General booking without specific name
+            lower.contains("book") || lower.contains("hire") || lower.contains("request") -> {
+                val vendor = when {
+                    lower.contains("nail") || lower.contains("beauty") -> BartrRepository.getVendor("adaeze")
+                    lower.contains("mechanic") || lower.contains("car") || lower.contains("auto") -> BartrRepository.getVendor("musa")
+                    else -> BartrRepository.getVendor("chuka")
+                }
+                AiResponseResult(
+                    text = "Booking ${vendor.name} for ${vendor.category} at ${vendor.finalPrice} for you now.",
+                    action = AutonomousAction.BookVendor(vendor.id, vendor.name, vendor.category, vendor.finalPrice)
+                )
+            }
+            // Selection / Detail view
+            lower.contains("select") || lower.contains("show me") || lower.contains("view") && (lower.contains("chuka") || lower.contains("adaeze") || lower.contains("musa") || lower.contains("ifeoma") || lower.contains("bode")) -> {
+                val targetVendor = when {
+                    lower.contains("adaeze") -> "adaeze"
+                    lower.contains("musa") -> "musa"
+                    lower.contains("ifeoma") -> "ifeoma"
+                    lower.contains("bode") -> "bode"
+                    else -> "chuka"
+                }
+                val vendor = BartrRepository.getVendor(targetVendor)
+                AiResponseResult(
+                    text = "Selected ${vendor.name} on the map. Rating is ${vendor.rating}, distance ${vendor.distance}.",
+                    action = AutonomousAction.SelectVendor(vendor.id, vendor.name)
+                )
+            }
+            // Filter actions
+            lower.contains("cheap") || lower.contains("budget") || lower.contains("lowest price") || lower.contains("affordable") -> {
+                AiResponseResult(
+                    text = "Filtering for the most affordable and budget-friendly artisans in Ikeja.",
+                    action = AutonomousAction.FilterVendors("cheapest", "price")
+                )
+            }
+            lower.contains("top rated") || lower.contains("best") || lower.contains("highest rating") || lower.contains("5 star") -> {
+                AiResponseResult(
+                    text = "Showing top rated 5-star artisans in Ikeja.",
+                    action = AutonomousAction.FilterVendors("top_rated", "rating")
+                )
+            }
+            lower.contains("nearest") || lower.contains("closest") || lower.contains("nearby") -> {
+                AiResponseResult(
+                    text = "Filtering for artisans nearest to your location on Market Road.",
+                    action = AutonomousAction.FilterVendors("nearest", "distance")
+                )
+            }
+            // Map controls
+            lower.contains("recenter") || lower.contains("center map") || lower.contains("my location") || lower.contains("where am i") -> {
+                AiResponseResult(
+                    text = "Centering map on 14 Market Road, Ikeja, Lagos.",
+                    action = AutonomousAction.RecenterMap()
+                )
+            }
+            lower.contains("zoom in") -> {
+                AiResponseResult(
+                    text = "Zooming in on the map.",
+                    action = AutonomousAction.ZoomMap("in")
+                )
+            }
+            lower.contains("zoom out") -> {
+                AiResponseResult(
+                    text = "Zooming out on the map.",
+                    action = AutonomousAction.ZoomMap("out")
+                )
+            }
+            // Chat
+            lower.contains("chat") || lower.contains("message") || lower.contains("text") -> {
+                val targetVendor = when {
+                    lower.contains("adaeze") -> "adaeze"
+                    lower.contains("musa") -> "musa"
+                    lower.contains("ifeoma") -> "ifeoma"
+                    lower.contains("bode") -> "bode"
+                    else -> "chuka"
+                }
+                val vendor = BartrRepository.getVendor(targetVendor)
+                AiResponseResult(
+                    text = "Opening chat with ${vendor.name}.",
                     action = AutonomousAction.OpenVendorChat(vendor.id, vendor.name)
                 )
             }
-            lower.contains("phone") || lower.contains("screen") || lower.contains("repair") || lower.contains("generator") || lower.contains("plumber") || lower.contains("mechanic") || lower.contains("nail") || lower.contains("hair") || lower.contains("find") || lower.contains("search") -> {
-                val query = when {
+            // Promo code
+            lower.contains("promo") || lower.contains("discount") || lower.contains("code") || lower.contains("bartr500") -> {
+                AiResponseResult(
+                    text = "Applying promo code BARTR500 for ₦500 off your next service request!",
+                    action = AutonomousAction.ApplyPromo("BARTR500")
+                )
+            }
+            // Price quotes & Estimates
+            lower.contains("quote") || lower.contains("how much") || lower.contains("cost") || lower.contains("estimate") || lower.contains("price for") -> {
+                val trade = when {
                     lower.contains("screen") || lower.contains("phone") -> "Phone screen repair"
-                    lower.contains("mechanic") || lower.contains("car") -> "Auto mechanic"
-                    lower.contains("nail") || lower.contains("beauty") -> "Nails and beauty"
+                    lower.contains("nail") || lower.contains("beauty") -> "Nail manicure"
+                    lower.contains("car") || lower.contains("mechanic") -> "Car diagnostic"
+                    lower.contains("plumb") -> "Plumbing service"
+                    lower.contains("electric") -> "Electrical wiring"
+                    else -> "General artisan repair"
+                }
+                val estimate = when {
+                    trade.contains("Phone") -> "₦4,500 – ₦6,000"
+                    trade.contains("Nail") -> "₦3,000 – ₦7,000"
+                    trade.contains("Car") -> "₦8,000 – ₦25,000"
+                    else -> "₦5,000 – ₦10,000"
+                }
+                AiResponseResult(
+                    text = "Fair price benchmark for $trade in Ikeja is $estimate with no upfront fees.",
+                    action = AutonomousAction.CalculateQuote(trade, userMessage, estimate)
+                )
+            }
+            // Bookmark / Save
+            lower.contains("save") || lower.contains("bookmark") || lower.contains("favorite") -> {
+                if (lower.contains("view") || lower.contains("open") || lower.contains("list") || lower.contains("show")) {
+                    AiResponseResult(
+                        text = "Opening your saved vendors list.",
+                        action = AutonomousAction.NavigateTo("saved_vendors", "Saved Vendors")
+                    )
+                } else {
+                    val targetVendor = when {
+                        lower.contains("adaeze") -> "adaeze"
+                        lower.contains("musa") -> "musa"
+                        lower.contains("ifeoma") -> "ifeoma"
+                        lower.contains("bode") -> "bode"
+                        else -> "chuka"
+                    }
+                    val vendor = BartrRepository.getVendor(targetVendor)
+                    AiResponseResult(
+                        text = "Saved ${vendor.name} to your favorites.",
+                        action = AutonomousAction.ToggleSaveVendor(vendor.id, vendor.name, true)
+                    )
+                }
+            }
+            // Reset filters
+            lower.contains("clear") || lower.contains("reset") || lower.contains("all artisans") || lower.contains("show all") -> {
+                AiResponseResult(
+                    text = "Cleared all filters. Showing all verified artisans.",
+                    action = AutonomousAction.ClearFilters()
+                )
+            }
+            // Navigation
+            lower.contains("payment") || lower.contains("card") || lower.contains("cash") -> {
+                AiResponseResult(
+                    text = "Opening payment methods. You can choose cash on completion or debit cards.",
+                    action = AutonomousAction.NavigateTo("payments", "Payments")
+                )
+            }
+            lower.contains("request") && (lower.contains("my") || lower.contains("history") || lower.contains("past") || lower.contains("active")) -> {
+                AiResponseResult(
+                    text = "Opening your requests history.",
+                    action = AutonomousAction.NavigateTo("my_requests", "My Requests")
+                )
+            }
+            lower.contains("help") || lower.contains("support") || lower.contains("faq") || lower.contains("issue") -> {
+                AiResponseResult(
+                    text = "Opening Bartr Help & Support center.",
+                    action = AutonomousAction.NavigateTo("help", "Help & Support")
+                )
+            }
+            lower.contains("profile") || lower.contains("account") || lower.contains("settings") -> {
+                AiResponseResult(
+                    text = "Opening your profile settings.",
+                    action = AutonomousAction.NavigateTo("profile", "Profile")
+                )
+            }
+            lower.contains("invite") || lower.contains("friend") || lower.contains("share") -> {
+                AiResponseResult(
+                    text = "Opening the invite screen to share Bartr with your friends.",
+                    action = AutonomousAction.NavigateTo("invite_friend", "Invite a Friend")
+                )
+            }
+            lower.contains("about") || lower.contains("terms") -> {
+                AiResponseResult(
+                    text = "Opening About Bartr.",
+                    action = AutonomousAction.NavigateTo("about", "About")
+                )
+            }
+            // Search by trade
+            lower.contains("phone") || lower.contains("screen") || lower.contains("battery") ||
+            lower.contains("mechanic") || lower.contains("car") || lower.contains("brake") ||
+            lower.contains("nail") || lower.contains("hair") || lower.contains("beauty") ||
+            lower.contains("plumber") || lower.contains("electrician") || lower.contains("generator") ||
+            lower.contains("carpenter") || lower.contains("find") || lower.contains("search") -> {
+                val query = when {
+                    lower.contains("screen") || lower.contains("phone") -> "Phone Repair"
+                    lower.contains("mechanic") || lower.contains("car") -> "Auto Mechanic"
+                    lower.contains("nail") || lower.contains("beauty") -> "Nail Tech"
+                    lower.contains("plumb") -> "Plumbing"
+                    lower.contains("electric") -> "Electrical"
+                    lower.contains("generator") -> "Generator Repair"
                     else -> userMessage
                 }
                 AiResponseResult(
-                    text = "Searching for trusted vendors for '$query' near Ikeja.",
+                    text = "Found trusted artisans for '$query' in Ikeja.",
                     action = AutonomousAction.SearchVendors(query)
                 )
             }
             else -> {
                 AiResponseResult(
-                    text = "I'm your Bartr Live Voice AI. I can find vendors for you, book repairs, navigate screens, center the map, or apply promo codes. What would you like me to do?",
+                    text = "Hi! I'm your Bartr voice assistant. I can find trusted artisans, book services, make calls, or check fair prices for you. What would you like us to sort out today?",
                     action = null
                 )
             }

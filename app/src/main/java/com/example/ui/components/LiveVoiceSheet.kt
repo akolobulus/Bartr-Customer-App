@@ -1,6 +1,12 @@
 package com.example.ui.components
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
@@ -31,17 +37,17 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.automirrored.filled.VolumeOff
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Keyboard
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.MicOff
+import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Send
-import androidx.compose.material.icons.filled.VolumeOff
-import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -56,6 +62,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -67,6 +74,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -100,6 +108,7 @@ fun LiveVoiceSheet(
     val aiTranscript by voiceManager.aiTranscript.collectAsState()
     val pendingPermission by voiceManager.pendingPermission.collectAsState()
     val isMuted by voiceManager.isMuted.collectAsState()
+    val isMicPaused by voiceManager.isMicPaused.collectAsState()
     val groundings by voiceManager.groundings.collectAsState()
     val currentModel by voiceManager.currentModel.collectAsState()
     val liveConnectionInfo by voiceManager.liveConnectionInfo.collectAsState()
@@ -108,13 +117,20 @@ fun LiveVoiceSheet(
     var textPrompt by remember { mutableStateOf("") }
     val focusManager = LocalFocusManager.current
 
+    DisposableEffect(Unit) {
+        voiceManager.startSession()
+        onDispose {
+            voiceManager.endSession()
+        }
+    }
+
     val sheetState = rememberModalBottomSheetState(
         skipPartiallyExpanded = true
     )
 
     ModalBottomSheet(
         onDismissRequest = {
-            voiceManager.stopListening()
+            voiceManager.endSession()
             onDismiss()
         },
         sheetState = sheetState,
@@ -161,8 +177,8 @@ fun LiveVoiceSheet(
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = Icons.Filled.AutoAwesome,
-                            contentDescription = "AI Sparkle",
+                            imageVector = Icons.AutoMirrored.Filled.VolumeUp,
+                            contentDescription = "Voice Assistant",
                             tint = Color.White,
                             modifier = Modifier.size(18.dp)
                         )
@@ -223,8 +239,8 @@ fun LiveVoiceSheet(
                         modifier = Modifier.size(36.dp)
                     ) {
                         Icon(
-                            imageVector = if (isMuted) Icons.Filled.VolumeOff else Icons.Filled.VolumeUp,
-                            contentDescription = if (isMuted) "Unmute voice" else "Mute voice",
+                            imageVector = if (isMuted) Icons.AutoMirrored.Filled.VolumeOff else Icons.AutoMirrored.Filled.VolumeUp,
+                            contentDescription = if (isMuted) "Unmute speaker" else "Mute speaker",
                             tint = if (isMuted) Color.Red else BartrInkSoft,
                             modifier = Modifier.size(20.dp)
                         )
@@ -232,7 +248,7 @@ fun LiveVoiceSheet(
 
                     IconButton(
                         onClick = {
-                            voiceManager.stopListening()
+                            voiceManager.endSession()
                             onDismiss()
                         },
                         modifier = Modifier.size(36.dp)
@@ -247,7 +263,68 @@ fun LiveVoiceSheet(
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Live Hands-Free Status Banner
+            Surface(
+                shape = RoundedCornerShape(20.dp),
+                color = when {
+                    isMicPaused -> Color(0xFFF5F5F5)
+                    voiceState == VoiceState.LISTENING -> Color(0xFFE8F5E9)
+                    voiceState == VoiceState.SPEAKING -> Color(0xFFE3F2FD)
+                    voiceState == VoiceState.THINKING -> Color(0xFFEDE7F6)
+                    voiceState == VoiceState.AWAITING_PERMISSION -> Color(0xFFFFF8E1)
+                    else -> Color(0xFFF5F5F5)
+                },
+                border = androidx.compose.foundation.BorderStroke(
+                    width = 1.dp,
+                    color = when {
+                        isMicPaused -> Color(0xFFBDBDBD)
+                        voiceState == VoiceState.LISTENING -> Color(0xFF81C784)
+                        voiceState == VoiceState.SPEAKING -> Color(0xFF64B5F6)
+                        voiceState == VoiceState.THINKING -> Color(0xFFB39DDB)
+                        voiceState == VoiceState.AWAITING_PERMISSION -> Color(0xFFFFB74D)
+                        else -> Color(0xFFE0E0E0)
+                    }
+                )
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    if (voiceState == VoiceState.LISTENING && !isMicPaused) {
+                        Box(
+                            modifier = Modifier
+                                .size(8.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFF2E7D32))
+                        )
+                    }
+                    Text(
+                        text = when {
+                            isMicPaused -> "Mic Paused • Tap mic below to resume"
+                            voiceState == VoiceState.LISTENING -> "Live Mic Active • Speak anytime"
+                            voiceState == VoiceState.SPEAKING -> "Assistant Speaking • Tap to interrupt"
+                            voiceState == VoiceState.THINKING -> "Gemini Processing..."
+                            voiceState == VoiceState.AWAITING_PERMISSION -> "Say 'Yes' or 'No' to authorize"
+                            else -> "Hands-Free Voice Ready"
+                        },
+                        fontSize = 11.5.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = when {
+                            isMicPaused -> Color(0xFF616161)
+                            voiceState == VoiceState.LISTENING -> Color(0xFF1B5E20)
+                            voiceState == VoiceState.SPEAKING -> Color(0xFF0D47A1)
+                            voiceState == VoiceState.THINKING -> Color(0xFF4A148C)
+                            voiceState == VoiceState.AWAITING_PERMISSION -> Color(0xFFE65100)
+                            else -> BartrInk
+                        }
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
 
             // Animated Visualizer
             LiveVoiceVisualizer(
@@ -533,34 +610,86 @@ fun LiveVoiceSheet(
                     )
                 }
 
-                // Main Push/Toggle Mic Button
+                // Main Push/Toggle Mic Button with Continuous Hands-Free feedback
                 val isListening = voiceState == VoiceState.LISTENING
-                Box(
-                    modifier = Modifier
-                        .size(70.dp)
-                        .shadow(elevation = if (isListening) 16.dp else 8.dp, shape = CircleShape)
-                        .clip(CircleShape)
-                        .background(
-                            if (isListening) {
-                                Brush.linearGradient(listOf(Color(0xFF1E88E5), Color(0xFF00ACC1)))
-                            } else {
-                                Brush.linearGradient(listOf(BartrBlue, Color(0xFF7E57C2)))
-                            }
-                        )
-                        .clickable {
-                            if (isListening) {
-                                voiceManager.stopListening()
-                            } else {
-                                voiceManager.startListening()
-                            }
-                        },
-                    contentAlignment = Alignment.Center
+                val isSpeaking = voiceState == VoiceState.SPEAKING
+                val infiniteTransition = rememberInfiniteTransition(label = "micPulse")
+                val pulseRingScale by infiniteTransition.animateFloat(
+                    initialValue = 1f,
+                    targetValue = 1.25f,
+                    animationSpec = infiniteRepeatable(
+                        animation = tween(1100, easing = FastOutSlowInEasing),
+                        repeatMode = RepeatMode.Reverse
+                    ),
+                    label = "pulseRingScale"
+                )
+
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    Icon(
-                        imageVector = if (isListening) Icons.Filled.Mic else Icons.Filled.MicOff,
-                        contentDescription = if (isListening) "Stop listening" else "Start speaking",
-                        tint = Color.White,
-                        modifier = Modifier.size(32.dp)
+                    Box(
+                        modifier = Modifier.size(80.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        // Outer pulsing glow when live listening
+                        if (isListening && !isMicPaused) {
+                            Box(
+                                modifier = Modifier
+                                    .size(70.dp)
+                                    .graphicsLayer {
+                                        scaleX = pulseRingScale
+                                        scaleY = pulseRingScale
+                                        alpha = 0.35f
+                                    }
+                                    .clip(CircleShape)
+                                    .background(Color(0xFF1E88E5))
+                            )
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .size(68.dp)
+                                .shadow(elevation = if (isListening) 16.dp else 8.dp, shape = CircleShape)
+                                .clip(CircleShape)
+                                .background(
+                                    when {
+                                        isMicPaused -> Brush.linearGradient(listOf(Color(0xFF757575), Color(0xFF9E9E9E)))
+                                        isListening -> Brush.linearGradient(listOf(Color(0xFF1E88E5), Color(0xFF00ACC1)))
+                                        isSpeaking -> Brush.linearGradient(listOf(Color(0xFF00897B), Color(0xFF26A69A)))
+                                        else -> Brush.linearGradient(listOf(BartrBlue, Color(0xFF7E57C2)))
+                                    }
+                                )
+                                .clickable {
+                                    if (isSpeaking) {
+                                        // Tap to interrupt AI speaking
+                                        voiceManager.startListening()
+                                    } else {
+                                        // Toggle pause
+                                        voiceManager.toggleMicPause()
+                                    }
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = if (isMicPaused) Icons.Filled.MicOff else Icons.Filled.Mic,
+                                contentDescription = if (isMicPaused) "Resume microphone" else "Active live microphone",
+                                tint = Color.White,
+                                modifier = Modifier.size(32.dp)
+                            )
+                        }
+                    }
+
+                    Text(
+                        text = when {
+                            isMicPaused -> "Mic paused • Tap to resume"
+                            isSpeaking -> "Speaking • Tap to interrupt"
+                            isListening -> "Live • Speak naturally"
+                            else -> "Live • Speak anytime"
+                        },
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = if (isMicPaused) Color(0xFFE53935) else BartrInkSoft
                     )
                 }
 
@@ -575,8 +704,8 @@ fun LiveVoiceSheet(
                         .background(Color(0xFFF1F5F9))
                 ) {
                     Icon(
-                        imageVector = Icons.Filled.AutoAwesome,
-                        contentDescription = "Quick AI action",
+                        imageVector = Icons.Filled.MyLocation,
+                        contentDescription = "Recenter map",
                         tint = BartrBlue,
                         modifier = Modifier.size(22.dp)
                     )

@@ -436,36 +436,15 @@ fun BartrMapView(
     trackedVendor: Vendor? = null,
     recenterTrigger: Int = 0,
 ) {
-    val hasValidMapsKey = remember {
-        try {
-            val key = BuildConfig.MAPS_API_KEY
-            key.isNotBlank() && key != "YOUR_MAPS_API_KEY" && !key.startsWith("YOUR_") && key.length > 10
-        } catch (e: Exception) {
-            false
-        }
-    }
-
-    if (hasValidMapsKey) {
-        BartrGoogleMapImpl(
-            vendors = vendors,
-            selectedVendorId = selectedVendorId,
-            onVendorSelected = onVendorSelected,
-            modifier = modifier,
-            isMiniMap = isMiniMap,
-            trackedVendor = trackedVendor,
-            recenterTrigger = recenterTrigger
-        )
-    } else {
-        BartrInteractiveVectorMap(
-            vendors = vendors,
-            selectedVendorId = selectedVendorId,
-            onVendorSelected = onVendorSelected,
-            modifier = modifier,
-            isMiniMap = isMiniMap,
-            trackedVendor = trackedVendor,
-            recenterTrigger = recenterTrigger
-        )
-    }
+    BartrOsmMapView(
+        vendors = vendors,
+        selectedVendorId = selectedVendorId,
+        onVendorSelected = onVendorSelected,
+        modifier = modifier,
+        isMiniMap = isMiniMap,
+        trackedVendor = trackedVendor,
+        recenterTrigger = recenterTrigger
+    )
 }
 
 @Composable

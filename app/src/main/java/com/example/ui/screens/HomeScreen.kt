@@ -1,7 +1,9 @@
 package com.example.ui.screens
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -29,7 +31,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Help
-import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.CardGiftcard
 import androidx.compose.material.icons.filled.Close
@@ -109,13 +111,16 @@ fun HomeScreen(
     var recenterTrigger by remember { mutableIntStateOf(0) }
     val context = LocalContext.current
 
-    val nearbyVendors = remember {
-        listOf(
-            BartrRepository.getVendor("chuka"),
-            BartrRepository.getVendor("adaeze"),
-            BartrRepository.getVendor("musa"),
+    var currentVendors by remember {
+        mutableStateOf(
+            listOf(
+                BartrRepository.getVendor("chuka"),
+                BartrRepository.getVendor("adaeze"),
+                BartrRepository.getVendor("musa"),
+            )
         )
     }
+    var selectedVendorId by remember { mutableStateOf<String?>(null) }
 
     BackHandler(enabled = drawerState.isOpen) {
         coroutineScope.launch { drawerState.close() }
@@ -135,6 +140,39 @@ fun HomeScreen(
                             onSearchMatchesDirect(action.query)
                         } else {
                             onSearchClick()
+                        }
+                    }
+                    is AutonomousAction.FilterVendors -> {
+                        Toast.makeText(context, "AI: Filtered by ${action.value}", Toast.LENGTH_SHORT).show()
+                        when (action.filterType.lowercase()) {
+                            "cheapest" -> currentVendors = BartrRepository.vendors.sortedBy {
+                                it.finalPrice.replace(Regex("[^0-9]"), "").toIntOrNull() ?: 99999
+                            }
+                            "top_rated" -> currentVendors = BartrRepository.vendors.sortedByDescending { it.ratingNum }
+                            "nearest" -> currentVendors = BartrRepository.vendors.sortedBy {
+                                it.distance.replace("km", "").toFloatOrNull() ?: 99f
+                            }
+                            else -> {
+                                val catMatch = BartrRepository.vendors.filter {
+                                    it.category.contains(action.value, ignoreCase = true) ||
+                                    it.name.contains(action.value, ignoreCase = true)
+                                }
+                                if (catMatch.isNotEmpty()) currentVendors = catMatch
+                            }
+                        }
+                    }
+                    is AutonomousAction.SelectVendor -> {
+                        val vendor = BartrRepository.getVendor(action.vendorId)
+                        selectedVendorId = vendor.id
+                        Toast.makeText(context, "AI: Selected ${vendor.name}", Toast.LENGTH_SHORT).show()
+                    }
+                    is AutonomousAction.CallVendor -> {
+                        Toast.makeText(context, "AI: Calling ${action.vendorName} (${action.phoneNumber})", Toast.LENGTH_SHORT).show()
+                        try {
+                            val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:${action.phoneNumber}"))
+                            context.startActivity(intent)
+                        } catch (e: Exception) {
+                            Toast.makeText(context, "Opening dialer for ${action.vendorName}", Toast.LENGTH_SHORT).show()
                         }
                     }
                     is AutonomousAction.NavigateTo -> {
@@ -159,6 +197,10 @@ fun HomeScreen(
                         recenterTrigger++
                         Toast.makeText(context, "AI: Map centered on 14 Market Road, Ikeja", Toast.LENGTH_SHORT).show()
                     }
+                    is AutonomousAction.ZoomMap -> {
+                        recenterTrigger++
+                        Toast.makeText(context, "AI: Zooming map ${action.direction}", Toast.LENGTH_SHORT).show()
+                    }
                     is AutonomousAction.ApplyPromo -> {
                         Toast.makeText(context, "AI: Promo code ${action.code} applied!", Toast.LENGTH_LONG).show()
                         onOpenPromotions()
@@ -179,6 +221,28 @@ fun HomeScreen(
                             onVendorClick(BartrRepository.getVendor(action.vendorId))
                         }
                     }
+                    is AutonomousAction.ToggleSaveVendor -> {
+                        Toast.makeText(context, "AI: ${if (action.save) "Saved" else "Removed"} ${action.vendorName} in favorites", Toast.LENGTH_SHORT).show()
+                    }
+                    is AutonomousAction.CalculateQuote -> {
+                        Toast.makeText(context, "AI: ${action.trade} quote estimate: ${action.estimate}", Toast.LENGTH_LONG).show()
+                    }
+                    is AutonomousAction.ShareApp -> {
+                        try {
+                            val sendIntent = Intent(Intent.ACTION_SEND).apply {
+                                putExtra(Intent.EXTRA_TEXT, "Use Bartr in Lagos to find trusted local artisans! Referral code: ${action.referralCode}")
+                                type = "text/plain"
+                            }
+                            context.startActivity(Intent.createChooser(sendIntent, "Share Bartr"))
+                        } catch (e: Exception) {
+                            Toast.makeText(context, "Share referral code: ${action.referralCode}", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                    is AutonomousAction.ClearFilters -> {
+                        currentVendors = BartrRepository.vendors
+                        selectedVendorId = null
+                        Toast.makeText(context, "AI: Filters cleared. Showing all artisans", Toast.LENGTH_SHORT).show()
+                    }
                 }
             }
         )
@@ -193,9 +257,11 @@ fun HomeScreen(
     val audioPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { isGranted ->
-        showVoiceSheet = true
         if (isGranted) {
-            voiceManager.startListening()
+            showVoiceSheet = true
+            voiceManager.startSession()
+        } else {
+            Toast.makeText(context, "Microphone permission is required for voice commands", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -414,8 +480,12 @@ fun HomeScreen(
                         .weight(0.36f)
                 ) {
                     BartrMapView(
-                        vendors = nearbyVendors,
-                        onVendorSelected = onVendorClick,
+                        vendors = currentVendors,
+                        selectedVendorId = selectedVendorId,
+                        onVendorSelected = { vendor ->
+                            selectedVendorId = vendor.id
+                            onVendorClick(vendor)
+                        },
                         recenterTrigger = recenterTrigger,
                         modifier = Modifier.fillMaxSize()
                     )
@@ -500,7 +570,7 @@ fun HomeScreen(
 
                                 if (hasRecordAudio) {
                                     showVoiceSheet = true
-                                    voiceManager.startListening()
+                                    voiceManager.startSession()
                                 } else {
                                     audioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
                                 }
@@ -514,14 +584,14 @@ fun HomeScreen(
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Filled.AutoAwesome,
-                            contentDescription = "Gemini Live Voice AI",
-                            tint = Color(0xFFFFD54F),
+                            imageVector = Icons.Filled.Mic,
+                            contentDescription = "Microphone",
+                            tint = Color.White,
                             modifier = Modifier.size(16.dp)
                         )
                         Icon(
-                            imageVector = Icons.Filled.Mic,
-                            contentDescription = null,
+                            imageVector = Icons.AutoMirrored.Filled.VolumeUp,
+                            contentDescription = "Speaker Volume",
                             tint = Color.White,
                             modifier = Modifier.size(16.dp)
                         )
@@ -608,12 +678,12 @@ fun HomeScreen(
 
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    nearbyVendors.forEachIndexed { index, vendor ->
+                    currentVendors.forEachIndexed { index, vendor ->
                         BartrVendorRow(
                             vendor = vendor,
                             onClick = { onVendorClick(vendor) }
                         )
-                        if (index < nearbyVendors.lastIndex) {
+                        if (index < currentVendors.lastIndex) {
                             HorizontalDivider(
                                 color = BartrInk.copy(alpha = 0.08f),
                                 thickness = 1.dp
