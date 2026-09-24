@@ -3,7 +3,7 @@
     <item
         android:width="66dp"
         android:height="66dp"
-        android:drawable="@drawable/ic_launcher_fg_asset"
+        android:drawable="@drawable/ic_bartr_app_icon"
         android:gravity="center" />
 </layer-list>
 

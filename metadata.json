@@ -1,6 +1,7 @@
 {
   "name": "Bartr",
   "description": "On-demand local services and artisan marketplace to find, chat with, and hire trusted nearby repairers, mechanics, and beauty professionals.",
+  "icon": "public/icon.png",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
