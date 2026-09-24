@@ -262,10 +262,10 @@ class VoiceConversationManager(
                 }
             }
 
-            // Tune pitch to 1.16f for a pleasant, soft, friendly feminine register
-            tts.setPitch(1.16f)
-            // Tune speech rate to 0.93f for a relaxed, calm, polite Nigerian pacing
-            tts.setSpeechRate(0.93f)
+            // Tune pitch to 1.15f for a pleasant, soft, friendly feminine register
+            tts.setPitch(1.15f)
+            // Tune speech rate to 1.16f for a brisk, faster, lively conversational pace
+            tts.setSpeechRate(1.16f)
             isTtsReady = (langResult != TextToSpeech.LANG_MISSING_DATA && langResult != TextToSpeech.LANG_NOT_SUPPORTED)
             if (!isTtsReady) {
                 // If en_NG data is missing in local TTS engine, fallback language to standard English while keeping pitch and rate
@@ -276,8 +276,8 @@ class VoiceConversationManager(
             Log.w(TAG, "Error setting soft Nigerian voice", e)
             try {
                 tts.setLanguage(Locale.ENGLISH)
-                tts.setPitch(1.16f)
-                tts.setSpeechRate(0.93f)
+                tts.setPitch(1.15f)
+                tts.setSpeechRate(1.16f)
                 isTtsReady = true
             } catch (ignored: Exception) {}
         }
@@ -509,8 +509,8 @@ class VoiceConversationManager(
             putString(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, utteranceId)
         }
         textToSpeech?.let { tts ->
-            tts.setPitch(1.16f)
-            tts.setSpeechRate(0.93f)
+            tts.setPitch(1.15f)
+            tts.setSpeechRate(1.16f)
             tts.speak(text, TextToSpeech.QUEUE_FLUSH, params, utteranceId)
         }
     }
